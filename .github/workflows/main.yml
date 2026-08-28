@@ -11,7 +11,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: microsoft/setup-msbuild@v2
 
-      # Step 1: Robust retarget to .NET 4.8 + remove PreBuildEvent
+      # 1. Retarget + remove PreBuildEvent
       - name: Prepare project files
         run: |
           $projects = @(
@@ -23,7 +23,7 @@ jobs:
             $path = Join-Path $env:GITHUB_WORKSPACE $proj
             if (Test-Path $path) {
               $content = Get-Content $path -Raw
-              # Replace any TargetFrameworkVersion tag with clean v4.8
+              # Replace any TargetFrameworkVersion with clean v4.8
               $content = $content -replace '<TargetFrameworkVersion[^>]*>.*?</TargetFrameworkVersion>', '<TargetFrameworkVersion>v4.8</TargetFrameworkVersion>'
               # Remove PreBuildEvent
               $content = $content -replace '(?s)\s*<PreBuildEvent[^>]*>.*?</PreBuildEvent>', ''
@@ -33,7 +33,7 @@ jobs:
           }
         shell: pwsh
 
-      # Step 2: Copy Common files into each project
+      # 2. Copy required Common files
       - name: Copy Common files
         run: |
           $commonInfo = "Common\Properties\Info.cs"
@@ -49,19 +49,19 @@ jobs:
           }
         shell: pwsh
 
-      # Step 3: Build ScpControl (dependency)
+      # 3. Build ScpControl
       - name: Build ScpControl
         run: msbuild ScpControl\ScpControl.csproj /p:Configuration=Release /p:Platform="AnyCPU"
 
-      # Step 4: Build ScpServer
+      # 4. Build ScpServer
       - name: Build ScpServer
         run: msbuild ScpServer\ScpServer.csproj /p:Configuration=Release /p:Platform="AnyCPU"
 
-      # Step 5: Build ScpInstaller
+      # 5. Build ScpInstaller – override TargetFrameworkVersion and clear Profile
       - name: Build ScpInstaller
-        run: msbuild ScpInstaller\ScpInstaller.csproj /p:Configuration=Release /p:Platform="AnyCPU"
+        run: msbuild ScpInstaller\ScpInstaller.csproj /p:Configuration=Release /p:Platform="AnyCPU" /p:TargetFrameworkVersion=v4.8 /p:TargetFrameworkProfile=
 
-      # Step 6: Upload artifacts – everything ends up in the root bin folder
+      # 6. Upload artifacts (all end up in root bin folder)
       - uses: actions/upload-artifact@v4
         with:
           name: ScpServer-Output
@@ -69,5 +69,4 @@ jobs:
             bin\ScpServer.exe
             bin\ScpInstaller.exe
             bin\ScpControl.dll
-            # Include any other useful files from bin (e.g., ScpMapper.xml)
-            bin\*
+            bin\*.xml
