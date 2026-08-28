@@ -11,27 +11,42 @@ jobs:
       - uses: actions/checkout@v4
       - uses: microsoft/setup-msbuild@v2
 
-      # Retarget all .csproj files from .NET 4.0 to 4.8
-      - name: Retarget projects to .NET Framework 4.8
+      # Retarget only the projects we need to .NET 4.8 and remove Profile=Client
+      - name: Retarget required projects to .NET Framework 4.8
         run: |
-          Get-ChildItem -Recurse -Filter *.csproj | ForEach-Object {
-            $content = Get-Content $_.FullName -Raw
-            # Replace TargetFrameworkVersion
-            $newContent = $content -replace '<TargetFrameworkVersion>v4\.0(?:,Profile=Client)?</TargetFrameworkVersion>', '<TargetFrameworkVersion>v4.8</TargetFrameworkVersion>'
-            if ($content -ne $newContent) {
-              Set-Content $_.FullName $newContent
-              Write-Host "Updated $($_.FullName)"
+          $projects = @(
+            "ScpControl\ScpControl.csproj",
+            "ScpServer\ScpServer.csproj",
+            "ScpInstaller\ScpInstaller.csproj"
+          )
+          foreach ($proj in $projects) {
+            $path = Join-Path $env:GITHUB_WORKSPACE $proj
+            if (Test-Path $path) {
+              $content = Get-Content $path -Raw
+              # Replace both v4.0 and v4.8 with Profile=Client
+              $newContent = $content -replace '<TargetFrameworkVersion>v4\.0(?:,Profile=Client)?</TargetFrameworkVersion>', '<TargetFrameworkVersion>v4.8</TargetFrameworkVersion>'
+              $newContent = $newContent -replace '<TargetFrameworkVersion>v4\.8,Profile=Client</TargetFrameworkVersion>', '<TargetFrameworkVersion>v4.8</TargetFrameworkVersion>'
+              if ($content -ne $newContent) {
+                Set-Content $path $newContent
+                Write-Host "Updated $path"
+              }
             }
           }
         shell: pwsh
 
-      - name: Build ScpServer.sln
-        run: msbuild ScpServer.sln /p:Configuration=Release /m
+      - name: Build ScpControl (dependency)
+        run: msbuild ScpControl\ScpControl.csproj /p:Configuration=Release
+
+      - name: Build ScpServer
+        run: msbuild ScpServer\ScpServer.csproj /p:Configuration=Release
+
+      - name: Build ScpInstaller
+        run: msbuild ScpInstaller\ScpInstaller.csproj /p:Configuration=Release
 
       - uses: actions/upload-artifact@v4
         with:
           name: ScpServer-Output
           path: |
-            ScpServer\bin\Release\*.exe
-            ScpInstaller\bin\Release\*.exe
-            **\bin\Release\*.dll
+            ScpServer\bin\Release\ScpServer.exe
+            ScpInstaller\bin\Release\ScpInstaller.exe
+            bin\ScpControl.dll   # ← output folder from ScpControl build
