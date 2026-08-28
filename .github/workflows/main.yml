@@ -31,7 +31,7 @@ jobs:
           }
         shell: pwsh
 
-      # 2. Copy required Common files
+      # 2. Copy Common files
       - name: Copy Common files
         run: |
           $commonInfo = "Common\Properties\Info.cs"
@@ -59,14 +59,14 @@ jobs:
       - name: Build ScpInstaller
         run: msbuild ScpInstaller\ScpInstaller.csproj /p:Configuration=Release /p:Platform="AnyCPU" /p:TargetFrameworkVersion=v4.8 /p:TargetFrameworkProfile=
 
-      # 6. Debug: list bin contents to confirm files are there
-      - name: List bin contents
-        run: dir bin
+      # 6. Debug: list contents of the actual output folder (one level up)
+      - name: List output folder
+        run: dir ..\bin
         shell: cmd
 
-      # 7. Upload the entire bin folder
+      # 7. Upload artifacts from the correct path
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
           name: ScpServer-Output
-          path: bin
+          path: ../bin
