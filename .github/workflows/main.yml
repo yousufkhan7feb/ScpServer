@@ -9,16 +9,20 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
-
       - uses: microsoft/setup-msbuild@v2
 
-      # Install .NET Framework 4.0 targeting pack – required for these projects
-      - name: Install .NET Framework 4.0 targeting pack
+      # Retarget all .csproj files from .NET 4.0 to 4.8
+      - name: Retarget projects to .NET Framework 4.8
         run: |
-          & "C:\Program Files (x86)\Microsoft Visual Studio\Installer\vs_installer.exe" modify `
-            --installPath "C:\Program Files\Microsoft Visual Studio\2022\Enterprise" `
-            --add Microsoft.Net.Component.4.0.TargetingPack `
-            --quiet --norestart
+          Get-ChildItem -Recurse -Filter *.csproj | ForEach-Object {
+            $content = Get-Content $_.FullName -Raw
+            # Replace TargetFrameworkVersion
+            $newContent = $content -replace '<TargetFrameworkVersion>v4\.0(?:,Profile=Client)?</TargetFrameworkVersion>', '<TargetFrameworkVersion>v4.8</TargetFrameworkVersion>'
+            if ($content -ne $newContent) {
+              Set-Content $_.FullName $newContent
+              Write-Host "Updated $($_.FullName)"
+            }
+          }
         shell: pwsh
 
       - name: Build ScpServer.sln
@@ -30,5 +34,4 @@ jobs:
           path: |
             ScpServer\bin\Release\*.exe
             ScpInstaller\bin\Release\*.exe
-            # Also include any DLLs if needed (e.g., ScpControl.dll)
             **\bin\Release\*.dll
