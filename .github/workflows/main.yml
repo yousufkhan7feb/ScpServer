@@ -11,7 +11,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: microsoft/setup-msbuild@v2
 
-      # 1. Retarget + remove PreBuildEvent
+      # 1. Retarget to .NET 4.8 and remove PreBuildEvent
       - name: Prepare project files
         run: |
           $projects = @(
@@ -23,9 +23,7 @@ jobs:
             $path = Join-Path $env:GITHUB_WORKSPACE $proj
             if (Test-Path $path) {
               $content = Get-Content $path -Raw
-              # Replace any TargetFrameworkVersion with clean v4.8
               $content = $content -replace '<TargetFrameworkVersion[^>]*>.*?</TargetFrameworkVersion>', '<TargetFrameworkVersion>v4.8</TargetFrameworkVersion>'
-              # Remove PreBuildEvent
               $content = $content -replace '(?s)\s*<PreBuildEvent[^>]*>.*?</PreBuildEvent>', ''
               Set-Content $path $content
               Write-Host "Updated $path"
@@ -33,7 +31,7 @@ jobs:
           }
         shell: pwsh
 
-      # 2. Copy required Common files
+      # 2. Copy required Common files into each project
       - name: Copy Common files
         run: |
           $commonInfo = "Common\Properties\Info.cs"
@@ -57,16 +55,13 @@ jobs:
       - name: Build ScpServer
         run: msbuild ScpServer\ScpServer.csproj /p:Configuration=Release /p:Platform="AnyCPU"
 
-      # 5. Build ScpInstaller – override TargetFrameworkVersion and clear Profile
+      # 5. Build ScpInstaller (overrides TargetFrameworkProfile)
       - name: Build ScpInstaller
         run: msbuild ScpInstaller\ScpInstaller.csproj /p:Configuration=Release /p:Platform="AnyCPU" /p:TargetFrameworkVersion=v4.8 /p:TargetFrameworkProfile=
 
-      # 6. Upload artifacts (all end up in root bin folder)
-      - uses: actions/upload-artifact@v4
+      # 6. Upload all files from the root bin folder
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
         with:
           name: ScpServer-Output
-          path: |
-            bin\ScpServer.exe
-            bin\ScpInstaller.exe
-            bin\ScpControl.dll
-            bin\*.xml
+          path: bin\*
