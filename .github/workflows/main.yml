@@ -11,28 +11,15 @@ jobs:
       - uses: actions/checkout@v4
       - uses: microsoft/setup-msbuild@v2
 
-      - name: List project files (debug)
-        run: |
-          dir *.sln /s
-          dir *.csproj /s
-        shell: cmd
-
-      - name: Build solution (if exists)
-        run: |
-          for /f "delims=" %%i in ('dir /b /s *.sln') do set SLN=%%i
-          if defined SLN (
-            echo Building %SLN%
-            msbuild %SLN% /p:Configuration=Release /m
-          ) else (
-            echo No solution found – building each .csproj without platform
-            msbuild ScpServer\ScpServer.csproj /p:Configuration=Release
-            msbuild ScpInstaller\ScpInstaller.csproj /p:Configuration=Release
-          )
-        shell: cmd
+      # Build only the main solution (not the _2010 ones)
+      - name: Build ScpServer.sln
+        run: msbuild ScpServer.sln /p:Configuration=Release /m
 
       - uses: actions/upload-artifact@v4
         with:
           name: ScpServer-Output
           path: |
-            **/bin/Release/**/*
-            **/bin/x64/Release/**/*
+            ScpServer\bin\Release\*.exe
+            ScpInstaller\bin\Release\*.exe
+            # Also include any other needed files (like DLLs) if they exist
+            **\bin\Release\*.dll
