@@ -11,7 +11,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: microsoft/setup-msbuild@v2
 
-      # Step 1: Retarget to .NET 4.8 and strip PreBuildEvent from the three projects
+      # Prepare project files: retarget to .NET 4.8, remove PreBuildEvent
       - name: Prepare project files
         run: |
           $projects = @(
@@ -26,7 +26,7 @@ jobs:
               # Retarget to v4.8
               $content = $content -replace '<TargetFrameworkVersion>v4\.0(?:,Profile=Client)?</TargetFrameworkVersion>', '<TargetFrameworkVersion>v4.8</TargetFrameworkVersion>'
               $content = $content -replace '<TargetFrameworkVersion>v4\.8,Profile=Client</TargetFrameworkVersion>', '<TargetFrameworkVersion>v4.8</TargetFrameworkVersion>'
-              # Remove PreBuildEvent – this regex handles attributes and line breaks
+              # Remove PreBuildEvent
               $content = $content -replace '(?s)\s*<PreBuildEvent[^>]*>.*?</PreBuildEvent>', ''
               Set-Content $path $content
               Write-Host "Updated $path"
@@ -34,7 +34,7 @@ jobs:
           }
         shell: pwsh
 
-      # Step 2: Copy the required Common files into each project
+      # Copy required Common files into each project folder
       - name: Copy Common files
         run: |
           $commonInfo = "Common\Properties\Info.cs"
@@ -50,15 +50,17 @@ jobs:
           }
         shell: pwsh
 
-      # Step 3: Build in order (ScpControl outputs to ..\bin\ )
+      # Build ScpControl (no platform needed – it uses default)
       - name: Build ScpControl
         run: msbuild ScpControl\ScpControl.csproj /p:Configuration=Release
 
+      # Build ScpServer – specify AnyCPU platform
       - name: Build ScpServer
-        run: msbuild ScpServer\ScpServer.csproj /p:Configuration=Release
+        run: msbuild ScpServer\ScpServer.csproj /p:Configuration=Release /p:Platform="AnyCPU"
 
+      # Build ScpInstaller – specify AnyCPU platform
       - name: Build ScpInstaller
-        run: msbuild ScpInstaller\ScpInstaller.csproj /p:Configuration=Release
+        run: msbuild ScpInstaller\ScpInstaller.csproj /p:Configuration=Release /p:Platform="AnyCPU"
 
       - uses: actions/upload-artifact@v4
         with:
