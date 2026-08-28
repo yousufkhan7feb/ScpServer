@@ -11,7 +11,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: microsoft/setup-msbuild@v2
 
-      # Prepare project files: retarget to .NET 4.8, remove PreBuildEvent
+      # Step 1: Robust retarget to .NET 4.8 + remove PreBuildEvent
       - name: Prepare project files
         run: |
           $projects = @(
@@ -23,9 +23,8 @@ jobs:
             $path = Join-Path $env:GITHUB_WORKSPACE $proj
             if (Test-Path $path) {
               $content = Get-Content $path -Raw
-              # Retarget to v4.8
-              $content = $content -replace '<TargetFrameworkVersion>v4\.0(?:,Profile=Client)?</TargetFrameworkVersion>', '<TargetFrameworkVersion>v4.8</TargetFrameworkVersion>'
-              $content = $content -replace '<TargetFrameworkVersion>v4\.8,Profile=Client</TargetFrameworkVersion>', '<TargetFrameworkVersion>v4.8</TargetFrameworkVersion>'
+              # Replace any TargetFrameworkVersion tag with clean v4.8
+              $content = $content -replace '<TargetFrameworkVersion[^>]*>.*?</TargetFrameworkVersion>', '<TargetFrameworkVersion>v4.8</TargetFrameworkVersion>'
               # Remove PreBuildEvent
               $content = $content -replace '(?s)\s*<PreBuildEvent[^>]*>.*?</PreBuildEvent>', ''
               Set-Content $path $content
@@ -34,7 +33,7 @@ jobs:
           }
         shell: pwsh
 
-      # Copy required Common files into each project folder
+      # Step 2: Copy Common files into each project
       - name: Copy Common files
         run: |
           $commonInfo = "Common\Properties\Info.cs"
@@ -50,22 +49,25 @@ jobs:
           }
         shell: pwsh
 
-      # Build ScpControl (no platform needed – it uses default)
+      # Step 3: Build ScpControl (dependency)
       - name: Build ScpControl
-        run: msbuild ScpControl\ScpControl.csproj /p:Configuration=Release
+        run: msbuild ScpControl\ScpControl.csproj /p:Configuration=Release /p:Platform="AnyCPU"
 
-      # Build ScpServer – specify AnyCPU platform
+      # Step 4: Build ScpServer
       - name: Build ScpServer
         run: msbuild ScpServer\ScpServer.csproj /p:Configuration=Release /p:Platform="AnyCPU"
 
-      # Build ScpInstaller – specify AnyCPU platform
+      # Step 5: Build ScpInstaller
       - name: Build ScpInstaller
         run: msbuild ScpInstaller\ScpInstaller.csproj /p:Configuration=Release /p:Platform="AnyCPU"
 
+      # Step 6: Upload artifacts – everything ends up in the root bin folder
       - uses: actions/upload-artifact@v4
         with:
           name: ScpServer-Output
           path: |
-            ScpServer\bin\Release\ScpServer.exe
-            ScpInstaller\bin\Release\ScpInstaller.exe
+            bin\ScpServer.exe
+            bin\ScpInstaller.exe
             bin\ScpControl.dll
+            # Include any other useful files from bin (e.g., ScpMapper.xml)
+            bin\*
