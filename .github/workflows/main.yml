@@ -1,6 +1,5 @@
 name: Build ScpServer
 
-# This enables the manual "Run workflow" button you want
 on:
   workflow_dispatch:
 
@@ -9,27 +8,37 @@ jobs:
     runs-on: windows-2022
 
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-    - name: Setup MSBuild
-      uses: microsoft/setup-msbuild@v2
+      - name: Setup MSBuild
+        uses: microsoft/setup-msbuild@v2
 
-    # The kernel driver (ScpBus) needs the Windows Driver Kit to compile
-    - name: Install Windows WDK
-      run: choco install windows-wdk -y --no-progress
+      # Install the WDK via Visual Studio installer (fast and official)
+      - name: Install Windows Driver Kit (WDK)
+        run: |
+          # Locate Visual Studio installation
+          $vsPath = & "C:\ProgramData\Chocolatey\bin\vswhere.exe" -products * -requires Microsoft.Component.MSBuild -property installationPath -latest
+          # Modify VS to add the WDK workload
+          & "$vsPath\Common7\Tools\vs_installer.exe" modify `
+            --installPath "$vsPath" `
+            --add Microsoft.VisualStudio.Workload.NativeDesktop `
+            --add Microsoft.VisualStudio.Component.WDK `
+            --add Microsoft.VisualStudio.Component.VC.Tools.x86.x64 `
+            --quiet --norestart
+        shell: pwsh
 
-    - name: Find and build the solution file
-      run: |
-        dir *.sln /s
-        msbuild ScpServer.sln /p:Configuration=Release /p:Platform="x64" /m
-      # Note: If there is no .sln file, replace 'ScpServer.sln' with the specific .csproj you want, e.g., 'ScpServer\ScpServer.csproj'
+      # Build the solution – MSBuild will now find the WDK tools
+      - name: Build solution
+        run: msbuild ScpServer.sln /p:Configuration=Release /p:Platform="x64" /m
+        # If there's no .sln, build individual projects:
+        # run: msbuild ScpServer\ScpServer.csproj /p:Configuration=Release && msbuild ScpInstaller\ScpInstaller.csproj /p:Configuration=Release
 
-    - name: Upload compiled EXEs and drivers as a downloadable artifact
-      uses: actions/upload-artifact@v4
-      with:
-        name: ScpServer-Output
-        path: |
-          **/bin/Release/**/*
-          **/bin/x64/Release/**/*
-          **/x64/Release/**/*
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ScpServer-Output
+          path: |
+            **/bin/Release/**/*
+            **/bin/x64/Release/**/*
+            **/x64/Release/**/*
