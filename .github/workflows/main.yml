@@ -1,0 +1,35 @@
+name: Build ScpServer
+
+# This enables the manual "Run workflow" button you want
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-2022
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup MSBuild
+      uses: microsoft/setup-msbuild@v2
+
+    # The kernel driver (ScpBus) needs the Windows Driver Kit to compile
+    - name: Install Windows WDK
+      run: choco install windows-wdk -y --no-progress
+
+    - name: Find and build the solution file
+      run: |
+        dir *.sln /s
+        msbuild ScpServer.sln /p:Configuration=Release /p:Platform="x64" /m
+      # Note: If there is no .sln file, replace 'ScpServer.sln' with the specific .csproj you want, e.g., 'ScpServer\ScpServer.csproj'
+
+    - name: Upload compiled EXEs and drivers as a downloadable artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: ScpServer-Output
+        path: |
+          **/bin/Release/**/*
+          **/bin/x64/Release/**/*
+          **/x64/Release/**/*
