@@ -11,7 +11,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: microsoft/setup-msbuild@v2
 
-      # 1. Prepare all .csproj files: retarget to .NET 4.8, remove PreBuildEvent
+      # 1. Prepare all .csproj files
       - name: Prepare project files
         run: |
           $projects = @(
@@ -33,7 +33,7 @@ jobs:
           }
         shell: pwsh
 
-      # 2. Copy Common resources into each project
+      # 2. Copy Common resources
       - name: Copy Common files
         run: |
           $commonInfo = "Common\Properties\Info.cs"
@@ -49,21 +49,31 @@ jobs:
           }
         shell: pwsh
 
-      # 3. Build all C# projects
+      # 3. Build ScpControl (dependency)
       - name: Build ScpControl
         run: msbuild ScpControl\ScpControl.csproj /p:Configuration=Release /p:Platform="AnyCPU"
+
+      # 4. Build ScpServer
       - name: Build ScpServer
         run: msbuild ScpServer\ScpServer.csproj /p:Configuration=Release /p:Platform="AnyCPU"
+
+      # 5. Build ScpInstaller (override Profile)
       - name: Build ScpInstaller
         run: msbuild ScpInstaller\ScpInstaller.csproj /p:Configuration=Release /p:Platform="AnyCPU" /p:TargetFrameworkVersion=v4.8 /p:TargetFrameworkProfile=
+
+      # 6. Build ScpMonitor
       - name: Build ScpMonitor
         run: msbuild ScpMonitor\ScpMonitor.csproj /p:Configuration=Release /p:Platform="AnyCPU"
-      - name: Build ScpPair
-        run: msbuild ScpPair\ScpPair.csproj /p:Configuration=Release /p:Platform="AnyCPU"
-      - name: Build ScpService
-        run: msbuild ScpService\ScpService.csproj /p:Configuration=Release /p:Platform="AnyCPU"
 
-      # 4. Create output folder structure
+      # 7. Build ScpPair (override Profile)
+      - name: Build ScpPair
+        run: msbuild ScpPair\ScpPair.csproj /p:Configuration=Release /p:Platform="AnyCPU" /p:TargetFrameworkVersion=v4.8 /p:TargetFrameworkProfile=
+
+      # 8. Build ScpService (override Profile)
+      - name: Build ScpService
+        run: msbuild ScpService\ScpService.csproj /p:Configuration=Release /p:Platform="AnyCPU" /p:TargetFrameworkVersion=v4.8 /p:TargetFrameworkProfile=
+
+      # 9. Create output folder structure
       - name: Create output folders
         run: |
           mkdir output
@@ -74,7 +84,7 @@ jobs:
           mkdir output\Zadig
         shell: cmd
 
-      # 5. Copy built EXEs, DLLs, and XMLs from the root bin folder
+      # 10. Copy built files from the root bin folder
       - name: Copy built files
         run: |
           xcopy /Y ..\bin\*.exe output\
@@ -82,7 +92,7 @@ jobs:
           xcopy /Y ..\bin\*.xml output\
         shell: cmd
 
-      # 6. Copy pre‑built folders from the repository (if they exist)
+      # 11. Copy pre‑built folders from the repository (if they exist)
       - name: Copy pre‑built folders
         run: |
           if exist System xcopy /E /I System output\System\
@@ -92,7 +102,7 @@ jobs:
           if exist Zadig xcopy /E /I Zadig output\Zadig\
         shell: cmd
 
-      # 7. Upload the complete package
+      # 12. Upload the complete package
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
