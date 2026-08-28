@@ -1,4 +1,4 @@
-name: Build ScpServer
+name: Build ScpServer (Apps only)
 
 on:
   workflow_dispatch:
@@ -8,37 +8,17 @@ jobs:
     runs-on: windows-2022
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+      - uses: microsoft/setup-msbuild@v2
 
-      - name: Setup MSBuild
-        uses: microsoft/setup-msbuild@v2
-
-      # Install the WDK via Visual Studio installer (fast and official)
-      - name: Install Windows Driver Kit (WDK)
+      - name: Build GUI and installer
         run: |
-          # Locate Visual Studio installation
-          $vsPath = & "C:\ProgramData\Chocolatey\bin\vswhere.exe" -products * -requires Microsoft.Component.MSBuild -property installationPath -latest
-          # Modify VS to add the WDK workload
-          & "$vsPath\Common7\Tools\vs_installer.exe" modify `
-            --installPath "$vsPath" `
-            --add Microsoft.VisualStudio.Workload.NativeDesktop `
-            --add Microsoft.VisualStudio.Component.WDK `
-            --add Microsoft.VisualStudio.Component.VC.Tools.x86.x64 `
-            --quiet --norestart
-        shell: pwsh
+          msbuild ScpServer\ScpServer.csproj /p:Configuration=Release
+          msbuild ScpInstaller\ScpInstaller.csproj /p:Configuration=Release
 
-      # Build the solution – MSBuild will now find the WDK tools
-      - name: Build solution
-        run: msbuild ScpServer.sln /p:Configuration=Release /p:Platform="x64" /m
-        # If there's no .sln, build individual projects:
-        # run: msbuild ScpServer\ScpServer.csproj /p:Configuration=Release && msbuild ScpInstaller\ScpInstaller.csproj /p:Configuration=Release
-
-      - name: Upload artifacts
-        uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v4
         with:
-          name: ScpServer-Output
+          name: ScpServer-Apps
           path: |
-            **/bin/Release/**/*
-            **/bin/x64/Release/**/*
-            **/x64/Release/**/*
+            ScpServer\bin\Release\*.exe
+            ScpInstaller\bin\Release\*.exe
