@@ -13,8 +13,8 @@ jobs:
 
       - name: Build GUI and installer
         run: |
-          msbuild ScpServer\ScpServer.csproj /p:Configuration=Release
-          msbuild ScpInstaller\ScpInstaller.csproj /p:Configuration=Release
+          msbuild ScpServer\ScpServer.csproj /p:Configuration=Release /p:Platform="Any CPU"
+          msbuild ScpInstaller\ScpInstaller.csproj /p:Configuration=Release /p:Platform="Any CPU"
 
       - uses: actions/upload-artifact@v4
         with:
